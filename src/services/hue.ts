@@ -83,6 +83,20 @@ export class HueService {
       this.allLights.set(`/lights/${light.data.id}`, light);
     }
 
+    setInterval(() => {
+      const { brightness, colorTemp } =
+        this.lightingService.getCurrentLightState();
+
+      for (const light of this.allLights.values()) {
+        if (this.trackedLights.includes(light.data.name)) {
+          const state = new model.LightState()
+            .brightness(brightness)
+            .ct(colorTemp);
+          this.api.lights.setLightState(light.data.id, state);
+        }
+      }
+    }, 30 * 60 * 1000);
+
     try {
       const eventSource = new EventSource(
         `https://${bridgeIp}/eventstream/clip/v2`,

@@ -17,7 +17,7 @@ interface SunTimes {
 }
 
 interface LightState {
-  brightness: number; // 15-100
+  brightness: number; // 5-100
   colorTemp: number; // 153-500 Mired
 }
 
@@ -142,12 +142,12 @@ export class LightingService {
 
     if (currentHour < sunriseHour - dawnLength) {
       // Night time
-      brightness = 15;
+      brightness = 5;
       colorTemp = 500; // Warmest (2000K)
     } else if (currentHour < sunriseHour) {
       // Dawn transition
       const progress = (currentHour - (sunriseHour - dawnLength)) / dawnLength;
-      brightness = Math.round(15 + progress * 35); // 15 to 50
+      brightness = Math.round(5 + progress * 35); // 5 to 50
       colorTemp = Math.round(500 - progress * 197); // 500 to 303 Mired (2000K to 3300K)
     } else if (currentHour < solarNoonHour) {
       // Morning
@@ -168,7 +168,7 @@ export class LightingService {
       colorTemp = Math.round(303 + progress * 197); // 303 to 500 Mired (3300K to 2000K)
     } else {
       // Night time
-      brightness = 15;
+      brightness = 5;
       colorTemp = 500; // Warmest (2000K)
     }
 
