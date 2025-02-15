@@ -136,39 +136,45 @@ export class LightingService {
     // Define transition periods (in hours relative to sunrise/sunset)
     const dawnLength = 1.5; // Dawn transition length
     const duskLength = 1.5; // Dusk transition length
+    const extendedEveningLength = 2.0; // Extended evening period after sunset
 
     let brightness: number;
     let colorTemp: number;
 
     if (currentHour < sunriseHour - dawnLength) {
       // Night time
-      brightness = 5;
+      brightness = 15;
       colorTemp = 500; // Warmest (2000K)
     } else if (currentHour < sunriseHour) {
       // Dawn transition
       const progress = (currentHour - (sunriseHour - dawnLength)) / dawnLength;
-      brightness = Math.round(5 + progress * 35); // 5 to 50
+      brightness = Math.round(5 + progress * 35); // 5 to 40
       colorTemp = Math.round(500 - progress * 197); // 500 to 303 Mired (2000K to 3300K)
     } else if (currentHour < solarNoonHour) {
       // Morning
       const progress =
         (currentHour - sunriseHour) / (solarNoonHour - sunriseHour);
-      brightness = Math.round(50 + progress * 50); // 50 to 100
+      brightness = Math.round(40 + progress * 60); // 40 to 100
       colorTemp = Math.round(303 - progress * 150); // 303 to 153 Mired (3300K to 6500K)
     } else if (currentHour < sunsetHour) {
       // Afternoon
       const progress =
         (currentHour - solarNoonHour) / (sunsetHour - solarNoonHour);
-      brightness = Math.round(100 - progress * 50); // 100 to 50
+      brightness = Math.round(100 - progress * 20); // 100 to 80
       colorTemp = Math.round(153 + progress * 150); // 153 to 303 Mired (6500K to 3300K)
-    } else if (currentHour < sunsetHour + duskLength) {
-      // Dusk transition
-      const progress = (currentHour - sunsetHour) / duskLength;
-      brightness = Math.round(50 - progress * 35); // 50 to 15
+    } else if (currentHour < sunsetHour + extendedEveningLength) {
+      // Extended evening period (2 hours after sunset)
+      brightness = 80;
+      colorTemp = 303; // Keep warm light (3300K)
+    } else if (currentHour < sunsetHour + extendedEveningLength + duskLength) {
+      // Dusk transition after extended evening
+      const progress =
+        (currentHour - (sunsetHour + extendedEveningLength)) / duskLength;
+      brightness = Math.round(80 - progress * 65); // 80 to 15
       colorTemp = Math.round(303 + progress * 197); // 303 to 500 Mired (3300K to 2000K)
     } else {
       // Night time
-      brightness = 5;
+      brightness = 15;
       colorTemp = 500; // Warmest (2000K)
     }
 

@@ -1,6 +1,8 @@
 export declare class HueService {
-    private lightStates;
-    private api;
+    private allLights;
+    private lightingService;
+    private trackedLights;
+    api: any;
     discoverBridge(): Promise<string>;
     connect(bridgeIp: string): Promise<void>;
     ensureAuthenticated(bridgeIp: string): Promise<void>;

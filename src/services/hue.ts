@@ -76,6 +76,20 @@ export class HueService {
     process.exit(1);
   }
 
+  setAllLightStates() {
+    const { brightness, colorTemp } =
+      this.lightingService.getCurrentLightState();
+
+    for (const light of this.allLights.values()) {
+      if (this.trackedLights.includes(light.data.name)) {
+        const state = new model.LightState()
+          .brightness(brightness)
+          .ct(colorTemp);
+        this.api.lights.setLightState(light.data.id, state);
+      }
+    }
+  }
+
   async setupEventStream(bridgeIp: string): Promise<void> {
     const lights = await this.api.lights.getAll();
 
@@ -83,18 +97,10 @@ export class HueService {
       this.allLights.set(`/lights/${light.data.id}`, light);
     }
 
-    setInterval(() => {
-      const { brightness, colorTemp } =
-        this.lightingService.getCurrentLightState();
+    this.setAllLightStates();
 
-      for (const light of this.allLights.values()) {
-        if (this.trackedLights.includes(light.data.name)) {
-          const state = new model.LightState()
-            .brightness(brightness)
-            .ct(colorTemp);
-          this.api.lights.setLightState(light.data.id, state);
-        }
-      }
+    setInterval(() => {
+      this.setAllLightStates();
     }, 30 * 60 * 1000);
 
     try {
@@ -127,7 +133,6 @@ export class HueService {
     eventSource.onmessage = async (event: any) => {
       try {
         const data = JSON.parse(event.data);
-        console.dir(data, { depth: null });
         this.processLightStateChanges(data);
       } catch (err) {
         console.error('Error processing event:', err);

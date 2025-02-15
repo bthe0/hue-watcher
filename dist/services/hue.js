@@ -4,8 +4,18 @@ exports.HueService = void 0;
 const node_hue_api_1 = require("node-hue-api");
 const config_1 = require("../config");
 const eventsource_1 = require("eventsource");
+const lighting_1 = require("./lighting");
 class HueService {
-    lightStates = new Map();
+    allLights = new Map();
+    lightingService;
+    trackedLights = [
+        'Kitchen 1',
+        'Kitchen 2',
+        'Kitchen 3',
+        'Storage 1',
+        'Hallway 2 1',
+        'Bathroom 2 1',
+    ];
     api;
     async discoverBridge() {
         const discoveryResults = await node_hue_api_1.discovery.nupnpSearch();
@@ -16,6 +26,10 @@ class HueService {
     }
     async connect(bridgeIp) {
         this.api = await node_hue_api_1.api.createLocal(bridgeIp).connect(config_1.config.hue.username);
+        this.lightingService = new lighting_1.LightingService({
+            latitude: 44.3302,
+            longitude: 23.7949,
+        });
     }
     async ensureAuthenticated(bridgeIp) {
         if (config_1.config.hue.username) {
@@ -45,6 +59,21 @@ class HueService {
         process.exit(1);
     }
     async setupEventStream(bridgeIp) {
+        const lights = await this.api.lights.getAll();
+        for (const light of lights) {
+            this.allLights.set(`/lights/${light.data.id}`, light);
+        }
+        setInterval(() => {
+            const { brightness, colorTemp } = this.lightingService.getCurrentLightState();
+            for (const light of this.allLights.values()) {
+                if (this.trackedLights.includes(light.data.name)) {
+                    const state = new node_hue_api_1.model.LightState()
+                        .brightness(brightness)
+                        .ct(colorTemp);
+                    this.api.lights.setLightState(light.data.id, state);
+                }
+            }
+        }, 30 * 60 * 1000);
         try {
             const eventSource = new eventsource_1.EventSource(`https://${bridgeIp}/eventstream/clip/v2`, {
                 fetch: (input, init) => fetch(input, {
@@ -69,6 +98,7 @@ class HueService {
         eventSource.onmessage = async (event) => {
             try {
                 const data = JSON.parse(event.data);
+                console.dir(data, { depth: null });
                 this.processLightStateChanges(data);
             }
             catch (err) {
@@ -83,14 +113,22 @@ class HueService {
     }
     processLightStateChanges(data) {
         for (const change of data) {
-            if (change.type === 'light' && change.on !== undefined) {
-                const lightId = parseInt(change.id);
-                const wasReachable = this.lightStates.get(lightId);
-                const isReachable = change.on.on;
-                if (!wasReachable && isReachable) {
-                    console.log(`Light ${lightId} reconnected`);
+            if (change.type === 'update' && change.data[0].status === 'connected') {
+                const lightId = change.data[0].id_v1;
+                const light = this.allLights.get(lightId);
+                if (!light) {
+                    continue;
                 }
-                this.lightStates.set(lightId, isReachable);
+                const id = light.data.id;
+                const name = light.data.name;
+                if (!this.trackedLights.includes(name)) {
+                    continue;
+                }
+                const { brightness, colorTemp } = this.lightingService.getCurrentLightState();
+                const state = new node_hue_api_1.model.LightState()
+                    .brightness(brightness)
+                    .ct(colorTemp);
+                this.api.lights.setLightState(id, state);
             }
         }
     }
