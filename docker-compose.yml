@@ -11,8 +11,6 @@ services:
       - .env
     networks:
       - hue-network
-    volumes:
-      - ./config:/app/config
     network_mode: host
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:${PORT:-8080}/health']
