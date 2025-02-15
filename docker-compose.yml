@@ -11,7 +11,6 @@ services:
       - .env
     networks:
       - hue-network
-    network_mode: host
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:${PORT:-8080}/health']
       interval: 30s
