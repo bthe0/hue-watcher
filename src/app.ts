@@ -16,7 +16,6 @@ export class App {
       await this.hueService.ensureAuthenticated(config.hue.bridgeIp);
       await this.hueService.connect(config.hue.bridgeIp);
       await this.hueService.setupEventStream(config.hue.bridgeIp);
-
       this.healthService.start();
       this.setupShutdownHandlers();
     } catch (err) {

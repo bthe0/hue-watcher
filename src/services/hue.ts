@@ -1,11 +1,21 @@
-import { api as hueApi, discovery } from 'node-hue-api';
+import { api as hueApi, discovery, model } from 'node-hue-api';
 import { config } from '../config';
 import { EventSource } from 'eventsource';
 import { LightState } from '../types';
+import { LightingService } from './lighting';
 
 export class HueService {
-  private lightStates: Map<number, boolean> = new Map();
-  private api: any;
+  private allLights: Map<string, any> = new Map();
+  private lightingService: any;
+  private trackedLights = [
+    'Kitchen 1',
+    'Kitchen 2',
+    'Kitchen 3',
+    'Storage 1',
+    'Hallway 2 1',
+    'Bathroom 2 1',
+  ];
+  public api: any;
 
   async discoverBridge(): Promise<string> {
     const discoveryResults = await discovery.nupnpSearch();
@@ -19,6 +29,10 @@ export class HueService {
 
   async connect(bridgeIp: string): Promise<void> {
     this.api = await hueApi.createLocal(bridgeIp).connect(config.hue.username);
+    this.lightingService = new LightingService({
+      latitude: 44.3302,
+      longitude: 23.7949,
+    });
   }
 
   async ensureAuthenticated(bridgeIp: string): Promise<void> {
@@ -63,6 +77,12 @@ export class HueService {
   }
 
   async setupEventStream(bridgeIp: string): Promise<void> {
+    const lights = await this.api.lights.getAll();
+
+    for (const light of lights) {
+      this.allLights.set(`/lights/${light.data.id}`, light);
+    }
+
     try {
       const eventSource = new EventSource(
         `https://${bridgeIp}/eventstream/clip/v2`,
@@ -93,6 +113,7 @@ export class HueService {
     eventSource.onmessage = async (event: any) => {
       try {
         const data = JSON.parse(event.data);
+        console.dir(data, { depth: null });
         this.processLightStateChanges(data);
       } catch (err) {
         console.error('Error processing event:', err);
@@ -108,16 +129,28 @@ export class HueService {
 
   private processLightStateChanges(data: LightState[]): void {
     for (const change of data) {
-      if (change.type === 'light' && change.on !== undefined) {
-        const lightId = parseInt(change.id);
-        const wasReachable = this.lightStates.get(lightId);
-        const isReachable = change.on.on;
+      if (change.type === 'update' && change.data[0].status === 'connected') {
+        const lightId = change.data[0].id_v1;
+        const light = this.allLights.get(lightId);
 
-        if (!wasReachable && isReachable) {
-          console.log(`Light ${lightId} reconnected`);
+        if (!light) {
+          continue;
         }
 
-        this.lightStates.set(lightId, isReachable);
+        const id = light.data.id;
+        const name = light.data.name;
+
+        if (!this.trackedLights.includes(name)) {
+          continue;
+        }
+
+        const { brightness, colorTemp } =
+          this.lightingService.getCurrentLightState();
+        const state = new model.LightState()
+          .brightness(brightness)
+          .ct(colorTemp);
+
+        this.api.lights.setLightState(id, state);
       }
     }
   }
