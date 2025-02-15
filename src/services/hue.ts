@@ -76,11 +76,12 @@ export class HueService {
     process.exit(1);
   }
 
-  setAllLightStates() {
+  async setAllLightStates() {
     const { brightness, colorTemp } =
       this.lightingService.getCurrentLightState();
 
     for (const light of this.allLights.values()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
       if (this.trackedLights.includes(light.data.name)) {
         const state = new model.LightState()
           .brightness(brightness)
@@ -97,10 +98,10 @@ export class HueService {
       this.allLights.set(`/lights/${light.data.id}`, light);
     }
 
-    this.setAllLightStates();
+    await this.setAllLightStates();
 
-    setInterval(() => {
-      this.setAllLightStates();
+    setInterval(async () => {
+      await this.setAllLightStates();
     }, 30 * 60 * 1000);
 
     try {
